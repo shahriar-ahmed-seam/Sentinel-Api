@@ -19,9 +19,10 @@ python -m http.server 5173
 # then open http://localhost:5173
 ```
 
-Set the **API base URL** field (top right) to your running API, e.g.
-`http://localhost:8000`. It's saved in the browser, and the dot shows live
-`/health` status.
+Set the **API endpoint** in the connection bar at the top of the workbench to
+your running API, e.g. `http://localhost:8000` (this is the default during local
+dev). The status dot shows live `/health` connectivity, and the value is saved
+in the browser.
 
 ## Deploy to Vercel
 
@@ -42,8 +43,8 @@ vercel        # preview
 vercel --prod # production
 ```
 
-After deploy, open the site and paste your API's public URL into the **API base
-URL** field.
+After deploy, open the site and paste your API's public URL into the **API
+endpoint** field in the workbench connection bar.
 
 ## Connecting to the API (CORS)
 

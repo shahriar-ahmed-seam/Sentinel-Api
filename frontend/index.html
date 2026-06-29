@@ -7,177 +7,289 @@
   <meta name="description" content="Evidence-grounded fintech support copilot. Investigates a complaint against transaction history, routes the case, and drafts a safe reply." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <!-- NAV -->
   <nav class="nav">
-    <div class="nav-inner">
-      <div class="brand">
-        <span class="logo">QS</span>
-        <span class="brand-name">QueueStorm<span class="brand-dim">/Investigator</span></span>
-      </div>
-      <div class="api-config">
-        <div class="api-row">
-          <span class="api-label">API</span>
-          <input id="apiBase" type="text" spellcheck="false" placeholder="https://your-api.example.com" />
-          <span id="healthDot" class="health-dot unknown" title="Unknown"></span>
-        </div>
-        <span id="healthText" class="health-text">Not checked</span>
+    <div class="container nav-inner">
+      <a class="brand" href="#top">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+            <path d="M3 7l9-4 9 4v6c0 5-4 8-9 9-5-1-9-4-9-9V7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter"/>
+            <path d="M8.5 12l2.4 2.4L16 9.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"/>
+          </svg>
+        </span>
+        <span class="brand-name">QueueStorm</span>
+      </a>
+      <div class="nav-meta">
+        <span class="nav-tag">Support Operations API</span>
+        <a class="nav-link" href="#workbench">Open workbench →</a>
       </div>
     </div>
   </nav>
 
   <!-- HERO -->
-  <header class="hero">
-    <div class="hero-inner">
-      <span class="eyebrow">Support Operations · Digital Finance</span>
-      <h1>Investigate the complaint.<br />Not just the text.</h1>
-      <p class="hero-sub">
-        QueueStorm reads a customer complaint alongside their transaction history,
-        determines what actually happened, routes the case to the right team, and
-        drafts a reply that never asks for credentials and never promises a refund
-        it cannot authorize.
-      </p>
-      <div class="hero-stats">
-        <div class="stat">
-          <span class="stat-num">~3 ms</span>
-          <span class="stat-label">Rule-engine decision</span>
+  <header class="hero" id="top">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="eyebrow-dot"></span>Evidence-grounded · safe by construction</span>
+        <h1 class="display">Investigate the complaint. Not just the text.</h1>
+        <p class="lede">
+          QueueStorm reads a customer complaint alongside their transaction
+          history, works out what actually happened, routes the case to the right
+          team, and drafts a reply that never asks for credentials and never
+          promises a refund it can't authorize.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#workbench">Try the live workbench</a>
+          <a class="btn btn-line" href="#how">How it works</a>
         </div>
-        <div class="stat">
-          <span class="stat-num">10 / 10</span>
-          <span class="stat-label">Public samples reproduced</span>
-        </div>
-        <div class="stat">
-          <span class="stat-num">0</span>
-          <span class="stat-label">Safety violations by construction</span>
-        </div>
+        <dl class="hero-stats">
+          <div><dt>~3 ms</dt><dd>rule-engine decision</dd></div>
+          <div><dt>10 / 10</dt><dd>public samples reproduced</dd></div>
+          <div><dt>0</dt><dd>safety violations by design</dd></div>
+        </dl>
+      </div>
+
+      <!-- HERO VISUAL -->
+      <div class="hero-visual" aria-hidden="true">
+        <div class="visual-glow"></div>
+        <svg class="visual-svg" viewBox="0 0 480 440" role="img">
+          <defs>
+            <pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse">
+              <path d="M26 0H0V26" fill="none" stroke="#20242e" stroke-width="1"/>
+            </pattern>
+          </defs>
+          <rect x="0" y="0" width="480" height="440" fill="url(#grid)" opacity="0.5"/>
+
+          <!-- result card -->
+          <g>
+            <rect x="96" y="40" width="356" height="318" fill="#14171e" stroke="#2a2f3a"/>
+            <rect x="96" y="40" width="356" height="40" fill="#1a1e27"/>
+            <rect x="112" y="56" width="9" height="9" fill="#3a4150"/>
+            <rect x="126" y="56" width="9" height="9" fill="#3a4150"/>
+            <rect x="140" y="56" width="9" height="9" fill="#3a4150"/>
+            <text x="436" y="64" text-anchor="end" class="svg-mono" fill="#626a78">200 · POST /analyze-ticket</text>
+
+            <!-- title + verdict -->
+            <text x="116" y="112" class="svg-mono" fill="#e9eaec">TKT-001</text>
+            <rect x="356" y="98" width="80" height="20" fill="#11271f" stroke="#1f6b4d"/>
+            <text x="396" y="112" text-anchor="middle" class="svg-mono sm" fill="#3ddc97">consistent</text>
+
+            <!-- badges -->
+            <rect x="116" y="130" width="118" height="24" fill="none" stroke="#3a4150"/>
+            <text x="126" y="146" class="svg-mono sm" fill="#c8cdd6">wrong_transfer</text>
+            <rect x="242" y="130" width="48" height="24" fill="#241b0c" stroke="#7a5a18"/>
+            <text x="266" y="146" text-anchor="middle" class="svg-mono sm" fill="#f0b429">high</text>
+
+            <!-- divider -->
+            <rect x="116" y="170" width="320" height="1" fill="#23272f"/>
+
+            <!-- txn rows -->
+            <text x="116" y="190" class="svg-mono sm" fill="#626a78">TRANSACTION MATCH</text>
+            <rect x="116" y="200" width="320" height="30" fill="#1a1e27" stroke="#23272f"/>
+            <rect x="116" y="200" width="3" height="30" fill="#3ddc97"/>
+            <rect x="130" y="211" width="9" height="9" fill="#3ddc97"/>
+            <text x="148" y="219" class="svg-mono sm" fill="#3ddc97">TXN-9101 · transfer</text>
+            <text x="424" y="219" text-anchor="end" class="svg-mono sm" fill="#e9eaec">5,000</text>
+
+            <rect x="116" y="234" width="320" height="26" fill="none" stroke="#20242e"/>
+            <rect x="130" y="243" width="9" height="9" fill="#3a4150"/>
+            <text x="148" y="251" class="svg-mono sm" fill="#7d8593">TXN-9087 · cash_in</text>
+            <text x="424" y="251" text-anchor="end" class="svg-mono sm" fill="#7d8593">10,000</text>
+
+            <!-- reply -->
+            <rect x="116" y="278" width="320" height="62" fill="#101a16" stroke="#1f3a2e"/>
+            <rect x="116" y="278" width="3" height="62" fill="#3ddc97"/>
+            <text x="132" y="298" class="svg-mono sm" fill="#3ddc97">customer_reply · scrubbed</text>
+            <rect x="132" y="308" width="280" height="6" fill="#2c3a34"/>
+            <rect x="132" y="320" width="240" height="6" fill="#2c3a34"/>
+          </g>
+
+          <!-- complaint chip (front) -->
+          <g>
+            <rect x="28" y="250" width="156" height="118" fill="#171b22" stroke="#2a2f3a"/>
+            <text x="44" y="280" class="svg-mono sm" fill="#626a78">COMPLAINT</text>
+            <rect x="44" y="294" width="120" height="7" fill="#3a4150"/>
+            <rect x="44" y="308" width="124" height="7" fill="#3a4150"/>
+            <rect x="44" y="322" width="92" height="7" fill="#3a4150"/>
+            <rect x="44" y="344" width="60" height="14" fill="none" stroke="#3a4150"/>
+            <text x="74" y="355" text-anchor="middle" class="svg-mono sm" fill="#9aa0aa">5000৳</text>
+            <!-- connector -->
+            <path d="M184 270 H236 V215" fill="none" stroke="#3ddc97" stroke-width="1.4" stroke-dasharray="3 3"/>
+            <rect x="232" y="211" width="8" height="8" fill="#3ddc97"/>
+          </g>
+        </svg>
       </div>
     </div>
   </header>
 
+  <!-- HOW IT WORKS -->
+  <section class="how" id="how">
+    <div class="container">
+      <div class="how-grid">
+        <article class="how-card">
+          <span class="how-num">01</span>
+          <h3>Extract &amp; classify</h3>
+          <p>Language, amounts (incl. Bangla digits), phone numbers and intent are parsed from free text, then a priority cascade fixes the case type.</p>
+        </article>
+        <article class="how-card">
+          <span class="how-num">02</span>
+          <h3>Match the evidence</h3>
+          <p>Candidate transactions are scored on amount, counterparty and status. A single strong match wins; a tie returns <em>insufficient_data</em> rather than a guess.</p>
+        </article>
+        <article class="how-card">
+          <span class="how-num">03</span>
+          <h3>Route &amp; reply safely</h3>
+          <p>Severity, department and escalation come from declarative rules. Every reply passes a scrubber that removes credential asks and unauthorized promises.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
   <!-- WORKBENCH -->
-  <main class="workbench">
-    <div class="section-head">
-      <h2>Live workbench</h2>
-      <p>Load an official sample or compose your own ticket, then run it against the API.</p>
+  <section class="workbench" id="workbench">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker">Live workbench</span>
+        <h2>Run a ticket against the API</h2>
+        <p>Load an official sample or compose your own, then analyze it in real time.</p>
+      </div>
+
+      <!-- connection bar -->
+      <div class="connbar">
+        <label for="apiBase">API endpoint</label>
+        <div class="conn-input">
+          <input id="apiBase" type="text" spellcheck="false" placeholder="http://localhost:8000" />
+          <span id="healthDot" class="health-dot unknown"></span>
+          <span id="healthText" class="health-text">not checked</span>
+        </div>
+        <span class="conn-hint">Point this at your running API (local or deployed), then analyze.</span>
+      </div>
+
+      <div class="layout">
+        <!-- INPUT -->
+        <section class="panel">
+          <div class="panel-head"><h3>Ticket</h3></div>
+          <div class="presets" id="presets"></div>
+
+          <label class="field">
+            <span>Ticket ID</span>
+            <input id="ticketId" type="text" value="TKT-001" spellcheck="false" />
+          </label>
+
+          <label class="field">
+            <span>Complaint</span>
+            <textarea id="complaint" rows="5" placeholder="Describe the customer's complaint..."></textarea>
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Language</span>
+              <select id="language">
+                <option value="">auto</option>
+                <option value="en">en</option>
+                <option value="bn">bn</option>
+                <option value="mixed">mixed</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>User type</span>
+              <select id="userType">
+                <option value="">none</option>
+                <option value="customer">customer</option>
+                <option value="merchant">merchant</option>
+                <option value="agent">agent</option>
+                <option value="unknown">unknown</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Channel</span>
+              <select id="channel">
+                <option value="">none</option>
+                <option value="in_app_chat">in_app_chat</option>
+                <option value="call_center">call_center</option>
+                <option value="email">email</option>
+                <option value="merchant_portal">merchant_portal</option>
+                <option value="field_agent">field_agent</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="txn-head">
+            <span>Transaction history</span>
+            <button id="addTxn" class="btn-ghost" type="button">+ Add</button>
+          </div>
+          <div id="txnList" class="txn-list"></div>
+
+          <button id="analyzeBtn" class="btn btn-primary btn-block" type="button">Analyze ticket</button>
+          <p id="errorMsg" class="error-msg" hidden></p>
+        </section>
+
+        <!-- OUTPUT -->
+        <section class="panel">
+          <div class="panel-head">
+            <h3>Investigation result</h3>
+            <span id="latency" class="latency" hidden></span>
+          </div>
+
+          <div id="emptyState" class="empty-state">
+            <div class="empty-mark">{ }</div>
+            <p>Load a sample or write a complaint, then run <strong>Analyze ticket</strong>.</p>
+          </div>
+
+          <div id="result" class="result" hidden>
+            <div class="badges" id="badges"></div>
+
+            <div class="grid-fields">
+              <div class="kv"><span class="k">Relevant txn</span><span class="v" id="relTxn">—</span></div>
+              <div class="kv"><span class="k">Verdict</span><span class="v" id="verdict">—</span></div>
+              <div class="kv"><span class="k">Department</span><span class="v" id="dept">—</span></div>
+              <div class="kv"><span class="k">Human review</span><span class="v" id="review">—</span></div>
+              <div class="kv"><span class="k">Confidence</span><span class="v" id="confidence">—</span></div>
+            </div>
+
+            <div class="block">
+              <h4>Agent summary</h4>
+              <p id="agentSummary"></p>
+            </div>
+            <div class="block">
+              <h4>Recommended next action</h4>
+              <p id="nextAction"></p>
+            </div>
+            <div class="block reply">
+              <h4>Customer reply <span class="safe-tag">safety-scrubbed</span></h4>
+              <p id="customerReply"></p>
+            </div>
+            <div class="block">
+              <h4>Reason codes</h4>
+              <div id="reasonCodes" class="chips"></div>
+            </div>
+
+            <details class="raw">
+              <summary>Raw JSON</summary>
+              <pre id="rawJson"></pre>
+            </details>
+          </div>
+        </section>
+      </div>
     </div>
-
-    <div class="layout">
-      <!-- INPUT -->
-      <section class="panel">
-        <div class="panel-head">
-          <h3>Ticket</h3>
-        </div>
-        <div class="presets" id="presets"></div>
-
-        <label class="field">
-          <span>Ticket ID</span>
-          <input id="ticketId" type="text" value="TKT-001" spellcheck="false" />
-        </label>
-
-        <label class="field">
-          <span>Complaint</span>
-          <textarea id="complaint" rows="5" placeholder="Describe the customer's complaint..."></textarea>
-        </label>
-
-        <div class="field-row">
-          <label class="field">
-            <span>Language</span>
-            <select id="language">
-              <option value="">(auto)</option>
-              <option value="en">en</option>
-              <option value="bn">bn</option>
-              <option value="mixed">mixed</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>User type</span>
-            <select id="userType">
-              <option value="">(none)</option>
-              <option value="customer">customer</option>
-              <option value="merchant">merchant</option>
-              <option value="agent">agent</option>
-              <option value="unknown">unknown</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Channel</span>
-            <select id="channel">
-              <option value="">(none)</option>
-              <option value="in_app_chat">in_app_chat</option>
-              <option value="call_center">call_center</option>
-              <option value="email">email</option>
-              <option value="merchant_portal">merchant_portal</option>
-              <option value="field_agent">field_agent</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="txn-head">
-          <span>Transaction history</span>
-          <button id="addTxn" class="btn-ghost" type="button">+ Add transaction</button>
-        </div>
-        <div id="txnList" class="txn-list"></div>
-
-        <button id="analyzeBtn" class="btn-primary" type="button">Analyze ticket</button>
-        <p id="errorMsg" class="error-msg" hidden></p>
-      </section>
-
-      <!-- OUTPUT -->
-      <section class="panel">
-        <div class="panel-head">
-          <h3>Investigation result</h3>
-          <span id="latency" class="latency" hidden></span>
-        </div>
-
-        <div id="emptyState" class="empty-state">
-          <p>Load a sample or write a complaint, then run <strong>Analyze ticket</strong>.</p>
-        </div>
-
-        <div id="result" class="result" hidden>
-          <div class="badges" id="badges"></div>
-
-          <div class="grid-fields">
-            <div class="kv"><span class="k">Relevant txn</span><span class="v" id="relTxn">—</span></div>
-            <div class="kv"><span class="k">Evidence verdict</span><span class="v" id="verdict">—</span></div>
-            <div class="kv"><span class="k">Department</span><span class="v" id="dept">—</span></div>
-            <div class="kv"><span class="k">Human review</span><span class="v" id="review">—</span></div>
-            <div class="kv"><span class="k">Confidence</span><span class="v" id="confidence">—</span></div>
-          </div>
-
-          <div class="block">
-            <h4>Agent summary</h4>
-            <p id="agentSummary"></p>
-          </div>
-          <div class="block">
-            <h4>Recommended next action</h4>
-            <p id="nextAction"></p>
-          </div>
-          <div class="block reply">
-            <h4>Customer reply <span class="safe-tag">safety-scrubbed</span></h4>
-            <p id="customerReply"></p>
-          </div>
-
-          <div class="block">
-            <h4>Reason codes</h4>
-            <div id="reasonCodes" class="chips"></div>
-          </div>
-
-          <details class="raw">
-            <summary>Raw JSON</summary>
-            <pre id="rawJson"></pre>
-          </details>
-        </div>
-      </section>
-    </div>
-  </main>
+  </section>
 
   <footer class="footer">
-    <div class="footer-inner">
-      <span class="footer-brand">QueueStorm Investigator</span>
-      <span class="footer-note">Rule-authoritative hybrid · deterministic core with optional LLM reply polish · every reply scrubbed in code.</span>
+    <div class="container footer-inner">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+            <path d="M3 7l9-4 9 4v6c0 5-4 8-9 9-5-1-9-4-9-9V7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter"/>
+            <path d="M8.5 12l2.4 2.4L16 9.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"/>
+          </svg>
+        </span>
+        <span class="brand-name">QueueStorm Investigator</span>
+      </div>
+      <p>Rule-authoritative hybrid · deterministic core with optional LLM reply polish · every reply scrubbed in code.</p>
     </div>
   </footer>
 

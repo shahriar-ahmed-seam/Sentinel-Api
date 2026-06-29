@@ -2,16 +2,23 @@
 
 const TXN_TYPES = ["transfer", "payment", "cash_in", "cash_out", "settlement", "refund"];
 const TXN_STATUS = ["completed", "failed", "pending", "reversed"];
+const LS_KEY = "qs_api_base";
 
 const $ = (id) => document.getElementById(id);
 
 // ---------------------------------------------------------------------------
-// API base URL (persisted in localStorage). Default to same origin so a
-// reverse-proxied deploy works out of the box; override for a separate API host.
+// API endpoint. Default to localhost:8000 during local dev; on a deployed host
+// the user must point it at their API (we never default to this page's origin,
+// which would return HTML and break JSON parsing).
 // ---------------------------------------------------------------------------
-const LS_KEY = "qs_api_base";
+function defaultApiBase() {
+  const h = location.hostname;
+  if (!h || h === "localhost" || h === "127.0.0.1") return "http://localhost:8000";
+  return "";
+}
+
 const apiBaseInput = $("apiBase");
-apiBaseInput.value = localStorage.getItem(LS_KEY) || window.location.origin;
+apiBaseInput.value = localStorage.getItem(LS_KEY) || defaultApiBase();
 
 apiBaseInput.addEventListener("change", () => {
   localStorage.setItem(LS_KEY, apiBaseInput.value.trim());
@@ -28,25 +35,28 @@ function apiBase() {
 async function checkHealth() {
   const dot = $("healthDot");
   const text = $("healthText");
+  if (!apiBase()) {
+    dot.className = "health-dot unknown";
+    text.textContent = "set endpoint";
+    return;
+  }
   dot.className = "health-dot unknown";
-  text.textContent = "Checking…";
+  text.textContent = "checking…";
   try {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 6000);
+    const timer = setTimeout(() => ctrl.abort(), 6000);
     const res = await fetch(apiBase() + "/health", { signal: ctrl.signal });
-    clearTimeout(t);
+    clearTimeout(timer);
     const body = await res.json();
     if (res.ok && body.status === "ok") {
       dot.className = "health-dot ok";
-      dot.title = "Healthy";
-      text.textContent = "API online";
+      text.textContent = "online";
     } else {
       throw new Error("bad status");
     }
   } catch {
     dot.className = "health-dot bad";
-    dot.title = "Unreachable";
-    text.textContent = "API unreachable";
+    text.textContent = "unreachable";
   }
 }
 
@@ -82,7 +92,6 @@ function txnCard(txn = {}) {
   TXN_STATUS.forEach((s) => status.add(new Option(s, s)));
   if (txn.status) status.value = txn.status;
 
-  // hidden timestamp carrier (kept from presets, not edited in the compact UI)
   card.dataset.ts = txn.timestamp || "";
 
   const del = document.createElement("button");
@@ -164,10 +173,22 @@ function buildPayload() {
   return payload;
 }
 
+function showError(msg) {
+  const err = $("errorMsg");
+  err.textContent = msg;
+  err.hidden = false;
+}
+
 async function analyze() {
   const btn = $("analyzeBtn");
   const err = $("errorMsg");
   err.hidden = true;
+
+  if (!apiBase()) {
+    showError("Set the API endpoint above first (e.g. http://localhost:8000).");
+    return;
+  }
+
   btn.disabled = true;
   btn.classList.add("loading");
   btn.innerHTML = '<span class="spinner"></span>Analyzing…';
@@ -180,14 +201,21 @@ async function analyze() {
       body: JSON.stringify(buildPayload()),
     });
     const ms = Math.round(performance.now() - started);
+
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      throw new Error(
+        `Expected JSON but got "${ct || "unknown"}". The endpoint is probably not the API — check the URL points at your QueueStorm server.`
+      );
+    }
+
     const body = await res.json();
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}: ${body.error || JSON.stringify(body)}`);
     }
     renderResult(body, ms);
   } catch (e) {
-    err.textContent = "Request failed — " + e.message + ". Check the API base URL and that the server is running.";
-    err.hidden = false;
+    showError("Request failed — " + e.message);
   } finally {
     btn.disabled = false;
     btn.classList.remove("loading");
@@ -200,6 +228,13 @@ $("analyzeBtn").onclick = analyze;
 // ---------------------------------------------------------------------------
 // Render result
 // ---------------------------------------------------------------------------
+function badge(label, value, cls) {
+  const el = document.createElement("div");
+  el.className = "badge " + cls;
+  el.innerHTML = `<span class="lbl">${label}</span><span class="val">${value}</span>`;
+  return el;
+}
+
 function renderResult(r, ms) {
   $("emptyState").hidden = true;
   $("result").hidden = false;
@@ -215,7 +250,7 @@ function renderResult(r, ms) {
   $("relTxn").textContent = r.relevant_transaction_id ?? "null";
   $("verdict").textContent = r.evidence_verdict;
   $("dept").textContent = r.department;
-  $("review").textContent = r.human_review_required ? "✓ required" : "not required";
+  $("review").textContent = r.human_review_required ? "required" : "not required";
   $("confidence").textContent = r.confidence != null ? r.confidence : "—";
 
   $("agentSummary").textContent = r.agent_summary;
@@ -235,13 +270,6 @@ function renderResult(r, ms) {
 
   $("rawJson").textContent = JSON.stringify(r, null, 2);
   $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-function badge(label, value, cls) {
-  const el = document.createElement("div");
-  el.className = "badge " + cls;
-  el.innerHTML = `<span class="lbl">${label}</span>${value}`;
-  return el;
 }
 
 // ---------------------------------------------------------------------------

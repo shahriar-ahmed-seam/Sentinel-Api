@@ -207,7 +207,12 @@ def check_contract_errors(base_url: str, insecure: bool) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
-    parser.add_argument("--samples", default="tests/data/sample_cases.json")
+    parser.add_argument(
+        "--samples",
+        default=str(
+            Path(__file__).resolve().parents[2] / "tests" / "data" / "sample_cases.json"
+        ),
+    )
     parser.add_argument("--insecure", action="store_true", help="disable TLS certificate verification for lab URLs")
     args = parser.parse_args()
 

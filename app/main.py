@@ -5,32 +5,43 @@ Status policy:
 - 400 invalid JSON / missing or wrong-typed required field
 - 422 schema valid but semantically invalid (empty complaint)
 - 413 body too large
-- 500 internal error (generic body; never leaks input/secrets/traces)
-
-The process must never crash on bad input.
+- 500 internal error (generic body)
 """
 
 from __future__ import annotations
 
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-# Load a local .env if present. override=False so a hosting platform's real env
-# vars always win, and so values pre-set by the test harness are respected.
+# override=False so the host's env vars and any harness-set values win.
 load_dotenv(override=False)
 
 from . import __version__  # noqa: E402
-from .pipeline import analyze  # noqa: E402
+from . import llm  # noqa: E402
+from .pipeline import analyze_async  # noqa: E402
 from .schemas import AnalyzeRequest  # noqa: E402
 
 logger = logging.getLogger("queuestorm")
 
 MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", "262144"))  # 256 KB default
+
+_CORS_ORIGINS = [
+    o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",") if o.strip()
+]
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    await llm.aclose_async_client()
+
 
 app = FastAPI(
     title="QueueStorm Investigator",
@@ -38,16 +49,20 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 
 class EmptyComplaintError(Exception):
     """Raised when `complaint` is present but blank -> HTTP 422."""
-
-
-# ---------------------------------------------------------------------------
-# Hardening middleware: cap request body size (DoS guard).
-# ---------------------------------------------------------------------------
 
 
 @app.middleware("http")
@@ -68,14 +83,8 @@ async def limit_body_size(request: Request, call_next):
     return await call_next(request)
 
 
-# ---------------------------------------------------------------------------
-# Exception handlers.
-# ---------------------------------------------------------------------------
-
-
 @app.exception_handler(RequestValidationError)
 async def on_validation_error(request: Request, exc: RequestValidationError):
-    # Invalid JSON, missing required field, or wrong-typed required field.
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content={"error": "invalid or malformed request body"},
@@ -92,17 +101,11 @@ async def on_empty_complaint(request: Request, exc: EmptyComplaintError):
 
 @app.exception_handler(Exception)
 async def on_unhandled(request: Request, exc: Exception):
-    # Generic body only — no stack trace, no input echo, no secrets.
     logger.exception("unhandled error processing request")
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"error": "internal error"},
     )
-
-
-# ---------------------------------------------------------------------------
-# Routes.
-# ---------------------------------------------------------------------------
 
 
 @app.get("/health")
@@ -111,13 +114,8 @@ async def health() -> dict:
 
 
 @app.post("/analyze-ticket")
-def analyze_ticket(req: AnalyzeRequest) -> JSONResponse:
-    # Defined as a SYNC handler on purpose: the pipeline makes a blocking
-    # (optional) LLM HTTP call, so FastAPI runs this in its threadpool instead of
-    # on the event loop. That keeps /health and concurrent requests responsive.
+async def analyze_ticket(req: AnalyzeRequest) -> JSONResponse:
     if not req.complaint.strip():
         raise EmptyComplaintError()
-    result = analyze(req)
-    # `result` is a plain dict already validated against the config enums by the
-    # pipeline; return it directly for speed and full control over field order.
+    result = await analyze_async(req)
     return JSONResponse(status_code=status.HTTP_200_OK, content=result)

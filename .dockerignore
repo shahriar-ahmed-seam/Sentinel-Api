@@ -12,8 +12,10 @@ __pycache__
 *.env
 !.env.example
 tests
-BUILD_PLAN.md
 *.md
 !README.md
+frontend
+docs
+sample_outputs.json
 .idea
 .vscode

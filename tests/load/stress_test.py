@@ -66,7 +66,8 @@ except Exception:  # noqa: BLE001 — older interpreters / redirected streams
     pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SAMPLE_PATH = os.path.join(HERE, "tests", "data", "sample_cases.json")
+ROOT = os.path.dirname(os.path.dirname(HERE))
+SAMPLE_PATH = os.path.join(ROOT, "tests", "data", "sample_cases.json")
 
 # Output enums the service is allowed to emit (mirrors app/config.py).
 EVIDENCE_VERDICTS = {"consistent", "inconsistent", "insufficient_data"}

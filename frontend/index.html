@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QueueStorm Investigator — Support Copilot API</title>
+  <meta name="description" content="Evidence-grounded fintech support copilot. Investigates a complaint against transaction history, routes the case, and drafts a safe reply." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <div class="brand">
+        <span class="logo">QS</span>
+        <span class="brand-name">QueueStorm<span class="brand-dim">/Investigator</span></span>
+      </div>
+      <div class="api-config">
+        <div class="api-row">
+          <span class="api-label">API</span>
+          <input id="apiBase" type="text" spellcheck="false" placeholder="https://your-api.example.com" />
+          <span id="healthDot" class="health-dot unknown" title="Unknown"></span>
+        </div>
+        <span id="healthText" class="health-text">Not checked</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero-inner">
+      <span class="eyebrow">Support Operations · Digital Finance</span>
+      <h1>Investigate the complaint.<br />Not just the text.</h1>
+      <p class="hero-sub">
+        QueueStorm reads a customer complaint alongside their transaction history,
+        determines what actually happened, routes the case to the right team, and
+        drafts a reply that never asks for credentials and never promises a refund
+        it cannot authorize.
+      </p>
+      <div class="hero-stats">
+        <div class="stat">
+          <span class="stat-num">~3 ms</span>
+          <span class="stat-label">Rule-engine decision</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">10 / 10</span>
+          <span class="stat-label">Public samples reproduced</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">0</span>
+          <span class="stat-label">Safety violations by construction</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- WORKBENCH -->
+  <main class="workbench">
+    <div class="section-head">
+      <h2>Live workbench</h2>
+      <p>Load an official sample or compose your own ticket, then run it against the API.</p>
+    </div>
+
+    <div class="layout">
+      <!-- INPUT -->
+      <section class="panel">
+        <div class="panel-head">
+          <h3>Ticket</h3>
+        </div>
+        <div class="presets" id="presets"></div>
+
+        <label class="field">
+          <span>Ticket ID</span>
+          <input id="ticketId" type="text" value="TKT-001" spellcheck="false" />
+        </label>
+
+        <label class="field">
+          <span>Complaint</span>
+          <textarea id="complaint" rows="5" placeholder="Describe the customer's complaint..."></textarea>
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Language</span>
+            <select id="language">
+              <option value="">(auto)</option>
+              <option value="en">en</option>
+              <option value="bn">bn</option>
+              <option value="mixed">mixed</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>User type</span>
+            <select id="userType">
+              <option value="">(none)</option>
+              <option value="customer">customer</option>
+              <option value="merchant">merchant</option>
+              <option value="agent">agent</option>
+              <option value="unknown">unknown</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Channel</span>
+            <select id="channel">
+              <option value="">(none)</option>
+              <option value="in_app_chat">in_app_chat</option>
+              <option value="call_center">call_center</option>
+              <option value="email">email</option>
+              <option value="merchant_portal">merchant_portal</option>
+              <option value="field_agent">field_agent</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="txn-head">
+          <span>Transaction history</span>
+          <button id="addTxn" class="btn-ghost" type="button">+ Add transaction</button>
+        </div>
+        <div id="txnList" class="txn-list"></div>
+
+        <button id="analyzeBtn" class="btn-primary" type="button">Analyze ticket</button>
+        <p id="errorMsg" class="error-msg" hidden></p>
+      </section>
+
+      <!-- OUTPUT -->
+      <section class="panel">
+        <div class="panel-head">
+          <h3>Investigation result</h3>
+          <span id="latency" class="latency" hidden></span>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+          <p>Load a sample or write a complaint, then run <strong>Analyze ticket</strong>.</p>
+        </div>
+
+        <div id="result" class="result" hidden>
+          <div class="badges" id="badges"></div>
+
+          <div class="grid-fields">
+            <div class="kv"><span class="k">Relevant txn</span><span class="v" id="relTxn">—</span></div>
+            <div class="kv"><span class="k">Evidence verdict</span><span class="v" id="verdict">—</span></div>
+            <div class="kv"><span class="k">Department</span><span class="v" id="dept">—</span></div>
+            <div class="kv"><span class="k">Human review</span><span class="v" id="review">—</span></div>
+            <div class="kv"><span class="k">Confidence</span><span class="v" id="confidence">—</span></div>
+          </div>
+
+          <div class="block">
+            <h4>Agent summary</h4>
+            <p id="agentSummary"></p>
+          </div>
+          <div class="block">
+            <h4>Recommended next action</h4>
+            <p id="nextAction"></p>
+          </div>
+          <div class="block reply">
+            <h4>Customer reply <span class="safe-tag">safety-scrubbed</span></h4>
+            <p id="customerReply"></p>
+          </div>
+
+          <div class="block">
+            <h4>Reason codes</h4>
+            <div id="reasonCodes" class="chips"></div>
+          </div>
+
+          <details class="raw">
+            <summary>Raw JSON</summary>
+            <pre id="rawJson"></pre>
+          </details>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="footer-brand">QueueStorm Investigator</span>
+      <span class="footer-note">Rule-authoritative hybrid · deterministic core with optional LLM reply polish · every reply scrubbed in code.</span>
+    </div>
+  </footer>
+
+  <script src="./presets.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

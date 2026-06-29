@@ -1,17 +1,15 @@
 """LLM assist layer (OpenRouter / Gemini 2.5 Flash).
 
-Assist-only by design: the LLM ONLY drafts the customer-facing reply and the
-agent text for a decision the rule engine has ALREADY made. It never decides the
-scored fields and never picks a transaction. Every call is best-effort: any
-timeout, HTTP error, or malformed response makes `draft_texts` return None and
-the caller falls back to the deterministic rule templates.
-
-Safety here is advisory (the system prompt); the binding guarantee is the
-code-side scrubber in safety.py, which runs on whatever text is finally used.
+Assist-only: the LLM rewrites the customer reply and agent text for a decision
+the rule engine has already made. It never decides a scored field and never
+picks a transaction. Any timeout, HTTP error, or malformed response makes the
+draft functions return None, and the caller falls back to the rule templates.
+The binding safety guarantee is the code-side scrubber in safety.py.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -22,6 +20,43 @@ import httpx
 from . import settings
 
 logger = logging.getLogger("queuestorm.llm")
+
+# Shared pooled client + concurrency gate. Reusing one AsyncClient keeps
+# connections alive (no per-request handshake); the semaphore bounds in-flight
+# calls so the provider is never hammered under load.
+_async_client: Optional[httpx.AsyncClient] = None
+_semaphore: Optional[asyncio.Semaphore] = None
+
+
+def _get_async_client() -> httpx.AsyncClient:
+    global _async_client
+    if _async_client is None or _async_client.is_closed:
+        cap = settings.max_concurrent_llm()
+        _async_client = httpx.AsyncClient(
+            limits=httpx.Limits(
+                max_connections=cap + 4,
+                max_keepalive_connections=cap,
+                keepalive_expiry=30.0,
+            ),
+        )
+    return _async_client
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    global _semaphore
+    if _semaphore is None:
+        _semaphore = asyncio.Semaphore(settings.max_concurrent_llm())
+    return _semaphore
+
+
+async def aclose_async_client() -> None:
+    global _async_client
+    if _async_client is not None and not _async_client.is_closed:
+        try:
+            await _async_client.aclose()
+        except Exception:  # noqa: BLE001
+            pass
+    _async_client = None
 
 _SYSTEM_PROMPT = (
     "You are a support-operations copilot for a Bangladeshi digital-finance "
@@ -111,16 +146,9 @@ def _build_user_prompt(
     return "\n".join(lines)
 
 
-def draft_texts(
-    decision: dict,
-    complaint: str,
-    reply_lang: str,
-    transactions: list[dict],
-) -> Optional[dict]:
-    """Return {customer_reply, agent_summary, recommended_next_action} or None."""
-    if not settings.llm_enabled():
-        return None
-
+def _build_payload_and_headers(
+    decision: dict, complaint: str, reply_lang: str, transactions: list[dict]
+) -> tuple[dict, dict]:
     payload = {
         "model": settings.model(),
         "messages": [
@@ -142,11 +170,41 @@ def draft_texts(
         "HTTP-Referer": "https://queuestorm.investigator",
         "X-Title": "QueueStorm Investigator",
     }
+    return payload, headers
 
+
+def _parse_response_content(content) -> Optional[dict]:
+    data = _extract_json(content)
+    if not isinstance(data, dict):
+        return None
+    out: dict[str, str] = {}
+    for key in ("customer_reply", "agent_summary", "recommended_next_action"):
+        val = data.get(key)
+        if isinstance(val, str) and val.strip():
+            out[key] = val.strip()
+    return out or None
+
+
+def _timeout() -> httpx.Timeout:
     budget = settings.timeout_seconds()
-    timeout = httpx.Timeout(budget, connect=min(2.0, budget))
+    return httpx.Timeout(budget, connect=min(settings.connect_timeout_seconds(), budget))
+
+
+def draft_texts(
+    decision: dict,
+    complaint: str,
+    reply_lang: str,
+    transactions: list[dict],
+) -> Optional[dict]:
+    """Synchronous draft (used by tests and non-async callers)."""
+    if not settings.llm_enabled():
+        return None
+
+    payload, headers = _build_payload_and_headers(
+        decision, complaint, reply_lang, transactions
+    )
     try:
-        with httpx.Client(timeout=timeout) as client:
+        with httpx.Client(timeout=_timeout()) as client:
             resp = client.post(
                 f"{settings.base_url()}/chat/completions",
                 json=payload,
@@ -156,17 +214,48 @@ def draft_texts(
             logger.warning("LLM HTTP %s; falling back to rules", resp.status_code)
             return None
         content = resp.json()["choices"][0]["message"]["content"]
-    except Exception:  # noqa: BLE001 — never let the LLM break a request
+    except Exception:  # noqa: BLE001
         logger.warning("LLM call failed; falling back to rules", exc_info=False)
         return None
 
-    data = _extract_json(content)
-    if not isinstance(data, dict):
+    return _parse_response_content(content)
+
+
+async def draft_texts_async(
+    decision: dict,
+    complaint: str,
+    reply_lang: str,
+    transactions: list[dict],
+) -> Optional[dict]:
+    """Async draft over the shared pooled client. The live server uses this. If
+    the concurrency cap is saturated the call is skipped immediately so the
+    caller can fall back to the rule answer instead of queueing."""
+    if not settings.llm_enabled():
         return None
 
-    out: dict[str, str] = {}
-    for key in ("customer_reply", "agent_summary", "recommended_next_action"):
-        val = data.get(key)
-        if isinstance(val, str) and val.strip():
-            out[key] = val.strip()
-    return out or None
+    sem = _get_semaphore()
+    if sem.locked():
+        logger.info("LLM concurrency cap reached; using rule answer")
+        return None
+
+    payload, headers = _build_payload_and_headers(
+        decision, complaint, reply_lang, transactions
+    )
+    try:
+        async with sem:
+            client = _get_async_client()
+            resp = await client.post(
+                f"{settings.base_url()}/chat/completions",
+                json=payload,
+                headers=headers,
+                timeout=_timeout(),
+            )
+        if resp.status_code != 200:
+            logger.warning("LLM HTTP %s; falling back to rules", resp.status_code)
+            return None
+        content = resp.json()["choices"][0]["message"]["content"]
+    except Exception:  # noqa: BLE001
+        logger.warning("LLM call failed; falling back to rules", exc_info=False)
+        return None
+
+    return _parse_response_content(content)

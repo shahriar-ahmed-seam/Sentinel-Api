@@ -128,7 +128,56 @@ def _apply_llm(
     return summary, action, reply, used
 
 
-def analyze(req: AnalyzeRequest) -> dict:
+async def _apply_llm_async(
+    texts: dict,
+    decision: dict,
+    reply_lang: str,
+    complaint: str,
+    history: list[Txn],
+) -> tuple[str, str, str, bool]:
+    """Async counterpart of `_apply_llm`, used by the live server."""
+    summary = texts["agent_summary"]
+    action = texts["recommended_next_action"]
+    reply = texts["customer_reply"]
+
+    if not settings.llm_enabled():
+        return summary, action, reply, False
+
+    compact = [
+        {
+            "transaction_id": t.transaction_id,
+            "type": t.type,
+            "amount": t.amount,
+            "counterparty": t.counterparty,
+            "status": t.status,
+        }
+        for t in history[:8]
+    ]
+    prompt_decision = dict(decision)
+    prompt_decision["baseline_reply"] = reply
+
+    draft = await llm.draft_texts_async(prompt_decision, complaint, reply_lang, compact)
+    if not draft:
+        return summary, action, reply, False
+
+    used = False
+    cand_reply = draft.get("customer_reply")
+    if cand_reply and is_reply_safe(cand_reply):
+        reply, used = cand_reply, True
+    cand_summary = draft.get("agent_summary")
+    if cand_summary and is_reply_safe(cand_summary):
+        summary, used = cand_summary, True
+    cand_action = draft.get("recommended_next_action")
+    if cand_action and is_reply_safe(cand_action):
+        action, used = cand_action, True
+
+    return summary, action, reply, used
+
+
+def _decide(req: AnalyzeRequest) -> dict:
+    """Run the deterministic rule pipeline. Returns a context dict with the
+    complete (already-safe) rule answer and everything the optional LLM and the
+    finalizer need."""
     history = parse_transactions(req.transaction_history)
     feats = extract(req.complaint, req.language)
 
@@ -138,11 +187,12 @@ def analyze(req: AnalyzeRequest) -> dict:
 
     severity = severity_of(case_type, verdict, relevant_id, amount)
     department = department_of(case_type, req.user_type, severity, verdict)
-    human_review = needs_human_review(case_type, verdict, relevant_id, severity, amount)
+    human_review = needs_human_review(
+        case_type, verdict, relevant_id, severity, amount
+    )
 
     texts = render(case_type, verdict, relevant_id, meta, feats, req.user_type)
 
-    # Assist-only LLM enrichment (rules already decided everything scored).
     decision = {
         "case_type": case_type,
         "evidence_verdict": verdict,
@@ -154,9 +204,39 @@ def analyze(req: AnalyzeRequest) -> dict:
         "counterparty": meta.get("counterparty"),
         "status": getattr(meta.get("txn"), "status", None),
     }
-    agent_summary, next_action_text, reply_text, llm_used = _apply_llm(
-        texts, decision, feats.reply_lang, req.complaint, history
-    )
+
+    return {
+        "history": history,
+        "feats": feats,
+        "case_type": case_type,
+        "verdict": verdict,
+        "relevant_id": relevant_id,
+        "meta": meta,
+        "amount": amount,
+        "severity": severity,
+        "department": department,
+        "human_review": human_review,
+        "texts": texts,
+        "decision": decision,
+    }
+
+
+def _finalize(
+    req: AnalyzeRequest,
+    ctx: dict,
+    agent_summary: str,
+    next_action_text: str,
+    reply_text: str,
+    llm_used: bool,
+) -> dict:
+    """Apply the binding safety net, build reason codes, and assemble the
+    schema-clamped response dict. Shared by the sync and async entry points."""
+    case_type = ctx["case_type"]
+    verdict = ctx["verdict"]
+    relevant_id = ctx["relevant_id"]
+    meta = ctx["meta"]
+    amount = ctx["amount"]
+    feats = ctx["feats"]
 
     # Final binding safety net (no-op when the chosen text is already safe).
     customer_reply = scrub_customer_reply(reply_text, feats.reply_lang)
@@ -168,7 +248,7 @@ def analyze(req: AnalyzeRequest) -> dict:
         and case_type in C.MONEY_MOVEMENT_CASES
     )
     reason_codes = _build_reason_codes(
-        case_type, verdict, relevant_id, meta, feats.injection, human_review, high_value
+        case_type, verdict, relevant_id, meta, feats.injection, ctx["human_review"], high_value
     )
     if settings.llm_enabled():
         reason_codes.append("llm_text_used" if llm_used else "llm_fallback_rules")
@@ -179,12 +259,32 @@ def analyze(req: AnalyzeRequest) -> dict:
         "relevant_transaction_id": relevant_id,
         "evidence_verdict": _clamp(verdict, C.EVIDENCE_VERDICTS, C.INSUFFICIENT),
         "case_type": _clamp(case_type, C.CASE_TYPES, C.OTHER),
-        "severity": _clamp(severity, C.SEVERITIES, C.MEDIUM),
-        "department": _clamp(department, C.DEPARTMENTS, C.CUSTOMER_SUPPORT),
+        "severity": _clamp(ctx["severity"], C.SEVERITIES, C.MEDIUM),
+        "department": _clamp(ctx["department"], C.DEPARTMENTS, C.CUSTOMER_SUPPORT),
         "agent_summary": agent_summary,
         "recommended_next_action": next_action,
         "customer_reply": customer_reply,
-        "human_review_required": bool(human_review),
+        "human_review_required": bool(ctx["human_review"]),
         "confidence": round(float(confidence_of(case_type, verdict, meta)), 2),
         "reason_codes": reason_codes,
     }
+
+
+def analyze(req: AnalyzeRequest) -> dict:
+    """Synchronous entry point (used by tests and any non-async caller)."""
+    ctx = _decide(req)
+    agent_summary, next_action_text, reply_text, llm_used = _apply_llm(
+        ctx["texts"], ctx["decision"], ctx["feats"].reply_lang, req.complaint, ctx["history"]
+    )
+    return _finalize(req, ctx, agent_summary, next_action_text, reply_text, llm_used)
+
+
+async def analyze_async(req: AnalyzeRequest) -> dict:
+    """Async entry point used by the live server: the rule decision runs inline
+    and only the optional LLM enrichment awaits I/O over a pooled,
+    concurrency-bounded client."""
+    ctx = _decide(req)
+    agent_summary, next_action_text, reply_text, llm_used = await _apply_llm_async(
+        ctx["texts"], ctx["decision"], ctx["feats"].reply_lang, req.complaint, ctx["history"]
+    )
+    return _finalize(req, ctx, agent_summary, next_action_text, reply_text, llm_used)

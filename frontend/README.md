@@ -26,22 +26,14 @@ in the browser.
 
 ## Deploy to Vercel
 
-This is a static site, so deployment is one step.
+The repo root ships a `vercel.json` that points Vercel's output at this
+`frontend/` folder, so you can import the repository as-is — no Root Directory
+change required.
 
-**Option A — Vercel dashboard**
 1. Push the repo to GitHub.
-2. In Vercel: **Add New → Project**, import the repo.
-3. Set **Root Directory** to `frontend`.
-4. Framework preset: **Other** (no build command, output is the directory).
-5. Deploy.
-
-**Option B — Vercel CLI**
-```bash
-npm i -g vercel
-cd frontend
-vercel        # preview
-vercel --prod # production
-```
+2. In Vercel: **Add New → Project**, import the repo, and **Deploy**.
+   The root `vercel.json` sets `outputDirectory` to `frontend`, so the site root
+   serves `frontend/index.html`.
 
 After deploy, open the site and paste your API's public URL into the **API
 endpoint** field in the workbench connection bar.
